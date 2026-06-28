@@ -2,7 +2,6 @@ package com.civicpulse.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class GeminiService {
 
     @Value("${gemini.api.key}")
@@ -28,28 +26,24 @@ public class GeminiService {
         result.put("severity", "LOW");
 
         try {
-            String prompt = String.format(
-                    "Analyze this community issue and respond in JSON only " +
-                            "with keys 'category' and 'severity'. " +
-                            "Categories: POTHOLE, STREETLIGHT, WATER_SUPPLY, " +
-                            "GARBAGE, DRAINAGE, NOISE, OTHER. " +
-                            "Severity: LOW, MEDIUM, HIGH, CRITICAL. " +
-                            "Title: %s. Description: %s. " +
-                            "Respond with JSON only, no extra text.",
-                    title, description);
+            String prompt = "Analyze this community issue and respond in JSON only " +
+                    "with keys 'category' and 'severity'. " +
+                    "Categories: POTHOLE, STREETLIGHT, WATER_SUPPLY, " +
+                    "GARBAGE, DRAINAGE, NOISE, OTHER. " +
+                    "Severity: LOW, MEDIUM, HIGH, CRITICAL. " +
+                    "Title: " + title + ". Description: " + description + ". " +
+                    "Respond with JSON only, no extra text, no markdown.";
 
-            String requestBody = String.format("""
-                {
-                    "contents": [{
-                        "parts": [{
-                            "text": "%s"
-                        }]
-                    }]
-                }
-                """, prompt.replace("\"", "\\\""));
+            String requestBody = "{"
+                    + "\"contents\": [{"
+                    + "\"parts\": [{"
+                    + "\"text\": \"" + prompt.replace("\"", "\\\"") + "\""
+                    + "}]"
+                    + "}]"
+                    + "}";
 
             String url = "https://generativelanguage.googleapis.com/v1beta/" +
-                    "models/gemini-2.0-flash:generateContent?key=" + apiKey;
+                    "models/gemini-2.0-flash-lite:generateContent?key=" + apiKey;
 
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
@@ -61,24 +55,39 @@ public class GeminiService {
             HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
 
+            System.out.println("Gemini raw response: " + response.body());
+
             JsonNode root = objectMapper.readTree(response.body());
-            String text = root.path("candidates")
-                    .get(0).path("content")
-                    .path("parts").get(0)
-                    .path("text").asText();
 
-            text = text.replaceAll("```json", "")
-                    .replaceAll("```", "")
-                    .trim();
+            // Safely navigate the response
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && candidates.size() > 0) {
+                JsonNode content = candidates.get(0).path("content");
+                JsonNode parts = content.path("parts");
+                if (parts.isArray() && parts.size() > 0) {
+                    String text = parts.get(0).path("text").asText();
+                    System.out.println("Gemini text response: " + text);
 
-            JsonNode analysisResult = objectMapper.readTree(text);
-            result.put("category", analysisResult.path("category")
-                    .asText("OTHER"));
-            result.put("severity", analysisResult.path("severity")
-                    .asText("LOW"));
+                    // Clean markdown if present
+                    text = text.replaceAll("```json", "")
+                            .replaceAll("```", "")
+                            .trim();
+
+                    JsonNode analysisResult = objectMapper.readTree(text);
+                    String category = analysisResult.path("category").asText("OTHER");
+                    String severity = analysisResult.path("severity").asText("LOW");
+
+                    result.put("category", category);
+                    result.put("severity", severity);
+                }
+            } else {
+                // Print error details from Gemini
+                System.err.println("Gemini error response: " + root.toPrettyString());
+            }
 
         } catch (Exception e) {
             System.err.println("Gemini API error: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return result;
