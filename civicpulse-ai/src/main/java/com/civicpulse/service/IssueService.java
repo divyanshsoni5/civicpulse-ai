@@ -82,4 +82,29 @@ public class IssueService {
                 .orElseThrow(() -> new RuntimeException("User not found!"));
         return issueRepository.findByReportedById(user.getId());
     }
+
+    public String generateSummary(List<Issue> issues) {
+        if (issues.isEmpty()) return "No issues reported yet.";
+
+        long open = issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.OPEN).count();
+        long inProgress = issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.IN_PROGRESS).count();
+        long resolved = issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.RESOLVED).count();
+        long critical = issues.stream()
+                .filter(i -> "CRITICAL".equals(i.getSeverity())).count();
+        long high = issues.stream()
+                .filter(i -> "HIGH".equals(i.getSeverity())).count();
+
+        String issueList = issues.stream()
+                .map(i -> "- " + i.getTitle() + " at " + i.getLocation()
+                        + " (Status: " + i.getStatus()
+                        + ", Severity: " + i.getSeverity() + ")")
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+        return geminiService.generateCitySummary(
+                issues.size(), open, inProgress, resolved,
+                critical, high, issueList);
+    }
 }

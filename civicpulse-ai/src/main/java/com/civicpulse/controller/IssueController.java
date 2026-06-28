@@ -10,6 +10,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/issues")
@@ -72,5 +74,14 @@ public class IssueController {
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(
                 issueService.getUserIssues(userDetails.getUsername()));
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<Map<String, String>> getIssuesSummary() {
+        List<Issue> issues = issueService.getAllIssues();
+        String summary = issueService.generateSummary(issues);
+        Map<String, String> response = new HashMap<>();
+        response.put("summary", summary);
+        return ResponseEntity.ok(response);
     }
 }

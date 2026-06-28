@@ -317,6 +317,41 @@
         .welcome-bar.active { display: flex; }
         .welcome-bar span { color: #555; }
         .welcome-bar strong { color: #1a73e8; }
+
+        .btn-summary {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #7c4dff, #4a148c);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        .btn-summary:hover { transform: translateY(-2px); }
+
+        /* Summary Modal */
+        .summary-box {
+            display: none;
+            background: linear-gradient(135deg, #f3e5f5, #e8eaf6);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #7c4dff;
+        }
+        .summary-box.active { display: block; }
+        .summary-box h3 {
+            color: #4a148c;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+        .summary-box p {
+            color: #333;
+            line-height: 1.7;
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
@@ -392,9 +427,19 @@
     <div class="dashboard">
         <div class="dashboard-header">
             <h2>🗺️ Community Issues</h2>
-            <button class="btn-report" onclick="showModal()">
-                + Report Issue
-            </button>
+            <div>
+                <button class="btn-summary" onclick="getSummary()">
+                    🤖 AI Summary
+                </button>
+                <button class="btn-report" onclick="showModal()">
+                    + Report Issue
+                </button>
+            </div>
+        </div>
+
+        <div class="summary-box" id="summaryBox">
+            <h3>🤖 AI City Summary</h3>
+            <p id="summaryText">Generating summary...</p>
         </div>
 
         <div class="filters">
@@ -444,6 +489,21 @@
     window.onload = function() {
         if (token) {
             showDashboard();
+        }
+    }
+
+    async function getSummary() {
+        const box = document.getElementById('summaryBox');
+        const text = document.getElementById('summaryText');
+        box.classList.add('active');
+        text.textContent = 'Generating AI summary... ⏳';
+
+        try {
+            const res = await fetch(`${API}/api/issues/summary`);
+            const data = await res.json();
+            text.textContent = data.summary;
+        } catch (e) {
+            text.textContent = 'Failed to generate summary!';
         }
     }
 

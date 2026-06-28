@@ -92,4 +92,55 @@ public class GeminiService {
 
         return result;
     }
+
+    public String generateCitySummary(long total, long open, long inProgress,
+                                      long resolved, long critical,
+                                      long high, String issueList) {
+        try {
+            String prompt = "You are a smart city AI assistant. Analyze these " +
+                    "community issues and generate a concise, helpful summary " +
+                    "for city administrators. Include key insights, most urgent " +
+                    "areas, and recommendations. Keep it under 150 words.\n\n" +
+                    "Total Issues: " + total + "\n" +
+                    "Open: " + open + "\n" +
+                    "In Progress: " + inProgress + "\n" +
+                    "Resolved: " + resolved + "\n" +
+                    "Critical: " + critical + "\n" +
+                    "High Severity: " + high + "\n\n" +
+                    "Issue List:\n" + issueList;
+
+            String requestBody = "{"
+                    + "\"contents\": [{"
+                    + "\"parts\": [{"
+                    + "\"text\": \"" + prompt.replace("\"", "\\\"")
+                    .replace("\n", "\\n") + "\""
+                    + "}]"
+                    + "}]"
+                    + "}";
+
+            String url = "https://generativelanguage.googleapis.com/v1beta/" +
+                    "models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = client.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && candidates.size() > 0) {
+                return candidates.get(0).path("content")
+                        .path("parts").get(0)
+                        .path("text").asText();
+            }
+        } catch (Exception e) {
+            System.err.println("Gemini summary error: " + e.getMessage());
+        }
+        return "Unable to generate summary at this time.";
+    }
 }
