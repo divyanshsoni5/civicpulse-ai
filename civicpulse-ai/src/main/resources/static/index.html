@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CivicPulse AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .navbar h1 span { color: #64b5f6; }
+        .nav-buttons button {
+            margin-left: 10px;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        #logoutBtn {
+            background: #ff5252;
+            color: white;
+            display: none;
+        }
+        #logoutBtn:hover { background: #d32f2f; }
+
+        /* PAGES */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* AUTH PAGE */
+        .auth-container {
+            max-width: 420px;
+            margin: 60px auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .auth-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1a73e8;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        .auth-switch a {
+            color: #1a73e8;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* DASHBOARD */
+        .dashboard {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .dashboard-header h2 {
+            font-size: 26px;
+            color: #1a73e8;
+        }
+        .btn-report {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #00c853, #1b5e20);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-report:hover { transform: translateY(-2px); }
+
+        /* FILTERS */
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 18px;
+            border: 2px solid #1a73e8;
+            background: white;
+            color: #1a73e8;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .filter-btn.active, .filter-btn:hover {
+            background: #1a73e8;
+            color: white;
+        }
+
+        /* ISSUE CARDS */
+        .issues-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .issue-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-left: 4px solid #1a73e8;
+        }
+        .issue-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+        .issue-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .issue-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #222;
+            flex: 1;
+        }
+        .severity-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+        .severity-CRITICAL { background: #ffebee; color: #c62828; }
+        .severity-HIGH { background: #fff3e0; color: #e65100; }
+        .severity-MEDIUM { background: #fff9c4; color: #f57f17; }
+        .severity-LOW { background: #e8f5e9; color: #2e7d32; }
+
+        .issue-desc {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .issue-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .tag {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .tag-category { background: #e3f2fd; color: #1565c0; }
+        .tag-status-OPEN { background: #e8f5e9; color: #2e7d32; }
+        .tag-status-IN_PROGRESS { background: #fff3e0; color: #e65100; }
+        .tag-status-RESOLVED { background: #ede7f6; color: #4527a0; }
+        .tag-status-CLOSED { background: #eceff1; color: #546e7a; }
+
+        .issue-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .issue-location {
+            font-size: 13px;
+            color: #888;
+        }
+        .upvote-btn {
+            padding: 6px 15px;
+            background: #e3f2fd;
+            color: #1a73e8;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .upvote-btn:hover {
+            background: #1a73e8;
+            color: white;
+        }
+
+        /* REPORT MODAL */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 35px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal h2 {
+            color: #1a73e8;
+            margin-bottom: 25px;
+            font-size: 22px;
+        }
+        .modal-close {
+            float: right;
+            cursor: pointer;
+            font-size: 24px;
+            color: #999;
+            background: none;
+            border: none;
+        }
+
+        /* ALERTS */
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+        .alert-error { background: #ffebee; color: #c62828; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; }
+
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 18px;
+        }
+
+        /* WELCOME BAR */
+        .welcome-bar {
+            background: white;
+            padding: 15px 30px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        }
+        .welcome-bar.active { display: flex; }
+        .welcome-bar span { color: #555; }
+        .welcome-bar strong { color: #1a73e8; }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <h1>Civic<span>Pulse</span> AI 🏙️</h1>
+    <div class="nav-buttons">
+        <button id="logoutBtn" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<!-- WELCOME BAR -->
+<div class="welcome-bar" id="welcomeBar">
+    <span>Welcome back, <strong id="welcomeName"></strong>! 👋</span>
+    <span id="welcomeRole"></span>
+</div>
+
+<!-- LOGIN PAGE -->
+<div class="page active" id="loginPage">
+    <div class="auth-container">
+        <h2>🔐 Login</h2>
+        <div class="alert alert-error" id="loginError"></div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="Enter your email"/>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter your password"/>
+        </div>
+        <button class="btn-primary" onclick="login()">Login</button>
+        <div class="auth-switch">
+            Don't have an account? <a onclick="showPage('registerPage')">Register here</a>
+        </div>
+    </div>
+</div>
+
+<!-- REGISTER PAGE -->
+<div class="page" id="registerPage">
+    <div class="auth-container">
+        <h2>📝 Register</h2>
+        <div class="alert alert-error" id="registerError"></div>
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="regName" placeholder="Enter your name"/>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="regEmail" placeholder="Enter your email"/>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="regPassword" placeholder="Create a password"/>
+        </div>
+        <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="regPhone" placeholder="Enter your phone"/>
+        </div>
+        <div class="form-group">
+            <label>Locality</label>
+            <input type="text" id="regLocality" placeholder="e.g. Indore"/>
+        </div>
+        <button class="btn-primary" onclick="register()">Create Account</button>
+        <div class="auth-switch">
+            Already have an account? <a onclick="showPage('loginPage')">Login here</a>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div class="page" id="dashboardPage">
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h2>🗺️ Community Issues</h2>
+            <button class="btn-report" onclick="showModal()">
+                + Report Issue
+            </button>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterIssues('ALL', this)">All</button>
+            <button class="filter-btn" onclick="filterIssues('OPEN', this)">Open</button>
+            <button class="filter-btn" onclick="filterIssues('IN_PROGRESS', this)">In Progress</button>
+            <button class="filter-btn" onclick="filterIssues('RESOLVED', this)">Resolved</button>
+        </div>
+
+        <div class="issues-grid" id="issuesGrid">
+            <div class="loading">Loading issues... ⏳</div>
+        </div>
+    </div>
+</div>
+
+<!-- REPORT ISSUE MODAL -->
+<div class="modal-overlay" id="reportModal">
+    <div class="modal">
+        <button class="modal-close" onclick="hideModal()">✕</button>
+        <h2>📍 Report an Issue</h2>
+        <div class="alert alert-error" id="reportError"></div>
+        <div class="alert alert-success" id="reportSuccess"></div>
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="issueTitle" placeholder="Brief title of the issue"/>
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="issueDesc" placeholder="Describe the issue in detail"/>
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="issueLocation" placeholder="e.g. MG Road, Indore"/>
+        </div>
+        <button class="btn-primary" onclick="reportIssue()">
+            🤖 Submit & AI Categorize
+        </button>
+    </div>
+</div>
+
+<script>
+    const API = 'http://localhost:8082';
+    let token = localStorage.getItem('token');
+    let allIssues = [];
+
+    // Check if already logged in
+    window.onload = function() {
+        if (token) {
+            showDashboard();
+        }
+    }
+
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+    }
+
+    function showDashboard() {
+        showPage('dashboardPage');
+        document.getElementById('logoutBtn').style.display = 'block';
+        const name = localStorage.getItem('userName');
+        const role = localStorage.getItem('userRole');
+        document.getElementById('welcomeName').textContent = name;
+        document.getElementById('welcomeRole').textContent = '👤 ' + role;
+        document.getElementById('welcomeBar').classList.add('active');
+        loadIssues();
+    }
+
+    async function login() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        try {
+            const res = await fetch(`${API}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                token = data.token;
+                localStorage.setItem('token', token);
+                localStorage.setItem('userName', data.name);
+                localStorage.setItem('userRole', data.role);
+                showDashboard();
+            } else {
+                showError('loginError', 'Invalid email or password!');
+            }
+        } catch (e) {
+            showError('loginError', 'Cannot connect to server!');
+        }
+    }
+
+    async function register() {
+        const body = {
+            name: document.getElementById('regName').value,
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPassword').value,
+            phone: document.getElementById('regPhone').value,
+            locality: document.getElementById('regLocality').value
+        };
+
+        try {
+            const res = await fetch(`${API}/api/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                token = data.token;
+                localStorage.setItem('token', token);
+                localStorage.setItem('userName', data.name);
+                localStorage.setItem('userRole', data.role);
+                showDashboard();
+            } else {
+                showError('registerError', data.message || 'Registration failed!');
+            }
+        } catch (e) {
+            showError('registerError', 'Cannot connect to server!');
+        }
+    }
+
+    async function loadIssues() {
+        try {
+            const res = await fetch(`${API}/api/issues`);
+            allIssues = await res.json();
+            renderIssues(allIssues);
+        } catch (e) {
+            document.getElementById('issuesGrid').innerHTML =
+                '<div class="loading">Failed to load issues 😕</div>';
+        }
+    }
+
+    function renderIssues(issues) {
+        const grid = document.getElementById('issuesGrid');
+        if (issues.length === 0) {
+            grid.innerHTML = '<div class="loading">No issues found 🎉</div>';
+            return;
+        }
+        grid.innerHTML = issues.map(issue => `
+            <div class="issue-card">
+                <div class="issue-card-header">
+                    <div class="issue-title">${issue.title}</div>
+                    <span class="severity-badge severity-${issue.severity}">
+                        ${issue.severity || 'N/A'}
+                    </span>
+                </div>
+                <div class="issue-desc">${issue.description}</div>
+                <div class="issue-meta">
+                    <span class="tag tag-category">
+                        🏷️ ${issue.category || 'Uncategorized'}
+                    </span>
+                    <span class="tag tag-status-${issue.status}">
+                        ${issue.status}
+                    </span>
+                </div>
+                <div class="issue-footer">
+                    <span class="issue-location">
+                        📍 ${issue.location || 'Unknown location'}
+                    </span>
+                    <button class="upvote-btn"
+                        onclick="upvote(${issue.id}, this)">
+                        👍 ${issue.upvotes}
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function filterIssues(status, btn) {
+        document.querySelectorAll('.filter-btn')
+            .forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (status === 'ALL') {
+            renderIssues(allIssues);
+        } else {
+            renderIssues(allIssues.filter(i => i.status === status));
+        }
+    }
+
+    async function upvote(id, btn) {
+        try {
+            const res = await fetch(`${API}/api/issues/${id}/upvote`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            btn.textContent = '👍 ' + data.upvotes;
+        } catch (e) {
+            alert('Failed to upvote!');
+        }
+    }
+
+    async function reportIssue() {
+        const body = {
+            title: document.getElementById('issueTitle').value,
+            description: document.getElementById('issueDesc').value,
+            location: document.getElementById('issueLocation').value
+        };
+
+        try {
+            const res = await fetch(`${API}/api/issues`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('reportSuccess').style.display = 'block';
+                document.getElementById('reportSuccess').textContent =
+                    `✅ Issue reported! AI categorized as: ${data.category} | Severity: ${data.severity}`;
+                loadIssues();
+                setTimeout(() => {
+                    hideModal();
+                    document.getElementById('reportSuccess').style.display = 'none';
+                }, 3000);
+            } else {
+                showError('reportError', 'Failed to report issue!');
+            }
+        } catch (e) {
+            showError('reportError', 'Cannot connect to server!');
+        }
+    }
+
+    function showModal() {
+        document.getElementById('reportModal').classList.add('active');
+    }
+
+    function hideModal() {
+        document.getElementById('reportModal').classList.remove('active');
+    }
+
+    function logout() {
+        localStorage.clear();
+        token = null;
+        document.getElementById('logoutBtn').style.display = 'none';
+        document.getElementById('welcomeBar').classList.remove('active');
+        showPage('loginPage');
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 4000);
+    }
+</script>
+</body>
+</html>
