@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -106,5 +107,38 @@ public class IssueService {
         return geminiService.generateCitySummary(
                 issues.size(), open, inProgress, resolved,
                 critical, high, issueList);
+    }
+
+    public Map<String, Object> getStats() {
+        List<Issue> issues = issueRepository.findAll();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", issues.size());
+        stats.put("open", issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.OPEN)
+                .count());
+        stats.put("inProgress", issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.IN_PROGRESS)
+                .count());
+        stats.put("resolved", issues.stream()
+                .filter(i -> i.getStatus() == Issue.Status.RESOLVED)
+                .count());
+        stats.put("critical", issues.stream()
+                .filter(i -> "CRITICAL".equals(i.getSeverity()))
+                .count());
+        stats.put("high", issues.stream()
+                .filter(i -> "HIGH".equals(i.getSeverity()))
+                .count());
+        stats.put("totalUpvotes", issues.stream()
+                .mapToInt(Issue::getUpvotes).sum());
+
+        // Category breakdown
+        Map<String, Long> categories = issues.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        i -> i.getCategory() != null ? i.getCategory() : "OTHER",
+                        java.util.stream.Collectors.counting()));
+        stats.put("categories", categories);
+
+        return stats;
     }
 }

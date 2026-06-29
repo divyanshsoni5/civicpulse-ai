@@ -84,4 +84,10 @@ public class IssueController {
         response.put("summary", summary);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getStats() {
+        Map<String, Object> stats = issueService.getStats();
+        return ResponseEntity.ok(stats);
+    }
 }

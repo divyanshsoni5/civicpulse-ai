@@ -352,6 +352,77 @@
             line-height: 1.7;
             font-size: 15px;
         }
+
+        /* STATS DASHBOARD */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-number {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .stat-total .stat-number { color: #1a73e8; }
+        .stat-open .stat-number { color: #e65100; }
+        .stat-progress .stat-number { color: #f57f17; }
+        .stat-resolved .stat-number { color: #2e7d32; }
+        .stat-critical .stat-number { color: #c62828; }
+        .stat-upvotes .stat-number { color: #6a1b9a; }
+
+        /* CATEGORY BARS */
+        .category-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .category-section h3 {
+            color: #1a73e8;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .category-bar {
+            margin-bottom: 12px;
+        }
+        .category-bar-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+        .category-bar-track {
+            background: #f0f2f5;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+        .category-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            transition: width 1s ease;
+        }
     </style>
 </head>
 <body>
@@ -442,6 +513,40 @@
             <p id="summaryText">Generating summary...</p>
         </div>
 
+        <!-- STATS GRID -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card stat-total">
+                <div class="stat-number" id="statTotal">-</div>
+                <div class="stat-label">Total Issues</div>
+            </div>
+            <div class="stat-card stat-open">
+                <div class="stat-number" id="statOpen">-</div>
+                <div class="stat-label">Open</div>
+            </div>
+            <div class="stat-card stat-progress">
+                <div class="stat-number" id="statProgress">-</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+            <div class="stat-card stat-resolved">
+                <div class="stat-number" id="statResolved">-</div>
+                <div class="stat-label">Resolved</div>
+            </div>
+            <div class="stat-card stat-critical">
+                <div class="stat-number" id="statCritical">-</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat-card stat-upvotes">
+                <div class="stat-number" id="statUpvotes">-</div>
+                <div class="stat-label">Total Upvotes</div>
+            </div>
+        </div>
+
+        <!-- CATEGORY BREAKDOWN -->
+        <div class="category-section" id="categorySection">
+            <h3>📊 Issues by Category</h3>
+            <div id="categoryBars"></div>
+        </div>
+
         <div class="filters">
             <button class="filter-btn active" onclick="filterIssues('ALL', this)">All</button>
             <button class="filter-btn" onclick="filterIssues('OPEN', this)">Open</button>
@@ -521,6 +626,7 @@
         document.getElementById('welcomeRole').textContent = '👤 ' + role;
         document.getElementById('welcomeBar').classList.add('active');
         loadIssues();
+        loadStats();
     }
 
     async function login() {
@@ -704,6 +810,41 @@
         el.textContent = msg;
         el.style.display = 'block';
         setTimeout(() => el.style.display = 'none', 4000);
+    }
+
+    async function loadStats() {
+        try {
+            const res = await fetch(`${API}/api/issues/stats`);
+            const data = await res.json();
+
+            document.getElementById('statTotal').textContent = data.total;
+            document.getElementById('statOpen').textContent = data.open;
+            document.getElementById('statProgress').textContent = data.inProgress;
+            document.getElementById('statResolved').textContent = data.resolved;
+            document.getElementById('statCritical').textContent = data.critical;
+            document.getElementById('statUpvotes').textContent = data.totalUpvotes;
+
+            // Category bars
+            const categories = data.categories;
+            const total = data.total || 1;
+            const barsHtml = Object.entries(categories).map(([cat, count]) => `
+            <div class="category-bar">
+                <div class="category-bar-label">
+                    <span>${cat}</span>
+                    <span>${count}</span>
+                </div>
+                <div class="category-bar-track">
+                    <div class="category-bar-fill"
+                        style="width: ${(count/total*100).toFixed(0)}%">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+            document.getElementById('categoryBars').innerHTML = barsHtml;
+
+        } catch (e) {
+            console.error('Failed to load stats:', e);
+        }
     }
 </script>
 </body>
