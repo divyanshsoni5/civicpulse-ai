@@ -1,25 +1,19 @@
 package com.civicpulse.ai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Gemini-backed implementation of {@link AIClassificationService}.
  * <p>
- * Uses Spring's {@link RestClient} (introduced in Spring Boot 3.2) to call
- * the Google Gemini REST API.  The API key is injected from
- * {@code application.properties} via the property {@code gemini.api.key} and
- * must never be committed to source control.
+ * Uses the <strong>official Google Gen AI Java SDK</strong>
+ * ({@code com.google.genai:google-genai}) to call the Gemini API.
+ * The {@link Client} bean is injected from {@link GeminiConfig}.
  *
  * <h2>Prompt contract</h2>
  * {@link #classifyComplaint} instructs Gemini to return <em>only</em> a
@@ -43,42 +37,47 @@ import java.util.Map;
 public class GeminiService implements AIClassificationService {
 
     // -----------------------------------------------------------------------
-    // Configuration
-    // -----------------------------------------------------------------------
-
-    /** Injected from {@code gemini.api.key} in application.properties. */
-    @Value("${gemini.api.key}")
-    private String apiKey;
-
-    /**
-     * Base URL of the Gemini generateContent endpoint.
-     * Model is appended at call time so it can be changed per use-case.
-     */
-    private static final String GEMINI_BASE_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/";
-
-    /** Default model used for structured classification tasks. */
-    private static final String CLASSIFICATION_MODEL = "gemini-2.0-flash:generateContent";
-
-    /** Default model used for longer free-form summarisation tasks. */
-    private static final String SUMMARY_MODEL = "gemini-2.0-flash:generateContent";
-
-    // -----------------------------------------------------------------------
     // Dependencies
     // -----------------------------------------------------------------------
 
-    private final RestClient restClient;
+    /** Official Google Gen AI client – configured in {@link GeminiConfig}. */
+    private final Client geminiClient;
+
     private final ObjectMapper objectMapper;
 
-    public GeminiService(ObjectMapper objectMapper) {
+    /** Model name injected from {@code gemini.model} in application.properties. */
+    @Value("${gemini.model}")
+    private String model;
+
+    public GeminiService(Client geminiClient, ObjectMapper objectMapper) {
+        this.geminiClient = geminiClient;
         this.objectMapper = objectMapper;
-        // Build a shared RestClient with sensible defaults.
-        // A timeout / connection-pool can be wired here via a custom
-        // ClientHttpRequestFactory if required in the future.
-        this.restClient = RestClient.builder()
-                .baseUrl(GEMINI_BASE_URL)
-                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                .build();
+    }
+
+    // -----------------------------------------------------------------------
+    // Public API – generateText
+    // -----------------------------------------------------------------------
+
+    /**
+     * Sends a free-form prompt to Gemini and returns the generated text.
+     *
+     * @param prompt the user prompt to send
+     * @return the generated text from Gemini
+     * @throws RuntimeException if the Gemini API call fails
+     */
+    public String generateText(String prompt) {
+        log.info("Sending prompt to Gemini model '{}': {}", model, prompt);
+        try {
+            GenerateContentResponse response = geminiClient.models.generateContent(
+                    model, prompt, null);
+            String text = response.text();
+            log.info("Gemini responded successfully.");
+            log.debug("Gemini response text: {}", text);
+            return text;
+        } catch (Exception e) {
+            log.error("Error calling Gemini generateContent: {}", e.getMessage(), e);
+            throw new RuntimeException("Gemini API error: " + e.getMessage(), e);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -94,14 +93,9 @@ public class GeminiService implements AIClassificationService {
     @Override
     public AIResponse classifyComplaint(String title, String description) {
         log.info("Classifying complaint via Gemini – title: '{}'", title);
-
         String prompt = buildClassificationPrompt(title, description);
-
         try {
-            String rawJson = callGemini(CLASSIFICATION_MODEL, prompt);
-            log.debug("Gemini raw response for classification: {}", rawJson);
-
-            String text = extractTextFromResponse(rawJson);
+            String text = generateText(prompt);
             log.debug("Gemini text block: {}", text);
 
             text = stripMarkdownFences(text);
@@ -112,9 +106,6 @@ public class GeminiService implements AIClassificationService {
                     response.getCategory(), response.getPriority(), response.getDepartment());
             return response;
 
-        } catch (RestClientException e) {
-            log.error("HTTP error calling Gemini API for classification: {}", e.getMessage(), e);
-            return AIResponse.failure("Gemini API HTTP error: " + e.getMessage());
         } catch (JsonProcessingException e) {
             log.error("Failed to parse Gemini classification response: {}", e.getMessage(), e);
             return AIResponse.failure("Failed to parse AI response: " + e.getMessage());
@@ -134,23 +125,15 @@ public class GeminiService implements AIClassificationService {
                                       long resolved, long critical,
                                       long high, String issueList) {
         log.info("Generating city summary – total issues: {}", total);
-
         String prompt = buildCitySummaryPrompt(total, open, inProgress, resolved, critical, high, issueList);
-
         try {
-            String rawJson = callGemini(SUMMARY_MODEL, prompt);
-            log.debug("Gemini raw response for city summary: {}", rawJson);
-
-            String text = extractTextFromResponse(rawJson);
+            String text = generateText(prompt);
             log.info("City summary generated successfully.");
             return text;
-
-        } catch (RestClientException e) {
-            log.error("HTTP error calling Gemini API for city summary: {}", e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Unexpected error generating city summary: {}", e.getMessage(), e);
+            log.error("Error generating city summary: {}", e.getMessage(), e);
+            return "Unable to generate summary at this time.";
         }
-        return "Unable to generate summary at this time.";
     }
 
     // -----------------------------------------------------------------------
@@ -158,74 +141,8 @@ public class GeminiService implements AIClassificationService {
     // -----------------------------------------------------------------------
 
     /**
-     * Sends a single-turn prompt to the specified Gemini model and returns
-     * the raw JSON response body as a string.
-     *
-     * @param model  model path segment (e.g. "gemini-2.0-flash:generateContent")
-     * @param prompt plain-text prompt to send
-     * @return raw JSON string from Gemini
-     */
-    private String callGemini(String model, String prompt) {
-        // Build the request body using Jackson-safe structures (no manual escaping)
-        Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", prompt)
-                        ))
-                )
-        );
-
-        String url = model + "?key=" + apiKey;
-
-        return restClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody)
-                .retrieve()
-                .body(String.class);
-    }
-
-    /**
-     * Navigates the Gemini response envelope and extracts the generated text.
-     *
-     * <pre>
-     * {
-     *   "candidates": [{
-     *     "content": {
-     *       "parts": [{ "text": "..." }]
-     *     }
-     *   }]
-     * }
-     * </pre>
-     *
-     * @param rawJson full JSON string returned by the Gemini endpoint
-     * @return the text value inside the first candidate's first part
-     * @throws IllegalStateException if the expected JSON structure is absent
-     */
-    private String extractTextFromResponse(String rawJson) throws Exception {
-        JsonNode root = objectMapper.readTree(rawJson);
-
-        JsonNode candidates = root.path("candidates");
-        if (!candidates.isArray() || candidates.isEmpty()) {
-            log.error("Gemini response contained no candidates: {}", root.toPrettyString());
-            throw new IllegalStateException("Gemini returned no candidates: " + rawJson);
-        }
-
-        JsonNode parts = candidates.get(0).path("content").path("parts");
-        if (!parts.isArray() || parts.isEmpty()) {
-            log.error("Gemini candidate contained no parts: {}", root.toPrettyString());
-            throw new IllegalStateException("Gemini candidate contained no parts: " + rawJson);
-        }
-
-        return parts.get(0).path("text").asText();
-    }
-
-    /**
      * Removes markdown code fences that Gemini sometimes wraps JSON in,
      * e.g. <code>```json\n{...}\n```</code>.
-     *
-     * @param text raw text from Gemini
-     * @return clean JSON string
      */
     private String stripMarkdownFences(String text) {
         return text
