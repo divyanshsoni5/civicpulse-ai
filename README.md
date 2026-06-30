@@ -80,11 +80,11 @@ gemini.api.key=YOUR_GEMINI_API_KEY
 
 bashmvn spring-boot:run
 
-The app starts on http://localhost:8082
+The app starts on https://civic-sync-eight.vercel.app/
 
 5. Open the frontend
 
-Visit http://localhost:8082 in your browser to use the app directly (served from src/main/resources/static).
+Visit https://civic-sync-eight.vercel.app/ in your browser to use the app directly (served from src/main/resources/static).
 
 
 📡 API Endpoints
