@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: civicpulse-ai-backend
+    env: static
+    rootDir: civicpulse-ai
+    buildCommand: "./mvnw clean package -DskipTests"
+    startCommand: "java -jar target/civicpulse-ai-0.0.1-SNAPSHOT.jar"
