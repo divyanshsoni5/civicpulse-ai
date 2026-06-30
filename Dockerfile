@@ -2,21 +2,23 @@
 FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
 
-# Copy the entire workspace into the container
+# Copy everything from the root directory into the container
 COPY . .
 
-# Step into the inner directory where pom.xml actually lives and build
+# Move into the inner project folder where pom.xml actually lives
 WORKDIR /app/civicpulse-ai
+
+# Ensure the maven wrapper has execution permissions and build
+RUN chmod +x mvnw
 RUN ./mvnw clean package -DskipTests
 
-# Stage 2: Create the runtime environment
-FROM openjdk-21
+# Stage 2: Create the runtime environment using a supported Java 21 image
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Copy the built jar dynamically without needing to know the exact snapshot name
+# Copy the built JAR from the inner target folder dynamically
 COPY --from=build /app/civicpulse-ai/target/*.jar app.jar
 
-# Spring Boot defaults to 8080
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
