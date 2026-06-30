@@ -1,24 +1,22 @@
-# Stage 1: Build the application using Maven
-FROM maven:3.8.5-openjdk-17 AS build
+# Stage 1: Build the application
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# Copy everything from the root directory into the container
+# Copy all project files including mvnw and .mvn folder
 COPY . .
 
-# Move into the inner project folder where pom.xml actually lives
-WORKDIR /app/civicpulse-ai
-
-# Ensure the maven wrapper has execution permissions and build
+# Ensure mvnw is executable
 RUN chmod +x mvnw
+
+# Build the project (skip tests for faster builds)
 RUN ./mvnw clean package -DskipTests
 
-# Stage 2: Create the runtime environment using a supported Java 21 image
-FROM eclipse-temurin:21-jre-jammy
+# Stage 2: Runtime environment
+FROM eclipse-temurin:21-jdk AS runtime
 WORKDIR /app
 
-# Copy the built JAR from the inner target folder dynamically
-COPY --from=build /app/civicpulse-ai/target/*.jar app.jar
+# Copy the built JAR from the build stage
+COPY --from=build /app/target/*.jar app.jar
 
-EXPOSE 8080
-
+# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
